@@ -53,7 +53,7 @@ fail-closed fallback (**VERDICT: RUN FULL PIPELINE**).
 |---|---|
 | [`paper/proof-carrying-pipelines.md`](paper/proof-carrying-pipelines.md) | The whitepaper: motivation, related work, threat model, protocol, case study |
 | [`docs/architecture.md`](docs/architecture.md) | C4 views (context, containers) + the attest-and-skip protocol as a sequence diagram — rendered natively by GitHub |
-| [`docs/use-cases.md`](docs/use-cases.md) | Eight instantiations beyond CI/CD (ML promotion, IaC, vendor intake, regulated documents, fleets…) + the 4-point selection test |
+| [`docs/use-cases.md`](docs/use-cases.md) | Eight instantiations beyond CI/CD (ML training/compilation/promotion offload, IaC, vendor intake, regulated documents, fleets…) + the 4-point selection test |
 | [`diagrams/`](diagrams/) | Mermaid sources + rendered PNGs of all diagrams |
 | [`spec/SPEC.md`](spec/SPEC.md) | Normative spec: payload schema, producer/verifier obligations (V1–V5), operational rules |
 | [`reference/pcp.py`](reference/pcp.py) | Reference CLI: `keygen · attest · verify` (Ed25519 demo backend + Google Cloud KMS backend) |

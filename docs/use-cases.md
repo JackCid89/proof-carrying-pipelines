@@ -20,13 +20,49 @@ data-quality tests still run on every execution (they depend on data, not code).
 **Caveat:** rule catalogs change often — the drift lock is what makes this safe, and rule
 rollout doubles as instant proof invalidation.
 
-## 2. ML model promotion
+## 2. ML: training, model compilation and promotion
 
-**Producer:** researcher's workstation or training cluster node. **Gates:** eval suites on
-pinned benchmark datasets (dataset digests in `tools`), bias/regression thresholds, model
-card completeness, license scans. **Elided:** the registry's re-evaluation before promoting
-a model to staging. **Caveat:** GPU nondeterminism means gates should assert *thresholds*,
-not exact scores; sampled re-evaluation (SPEC O3) matters more here than anywhere.
+**Producer:** researcher's workstation, on-prem GPU rig, or a training-cluster node — any
+enrolled machine whose hardware matches the approved platform set (the payload binds
+`platform`: arch, accelerator, driver — SPEC §2). Three workloads move, in increasing
+order of ambition:
+
+- **Promotion gates** *(the classic case)*: eval suites on pinned benchmark datasets
+  (dataset digests in `tools`), bias/regression thresholds, model-card completeness,
+  license scans. **Elided:** the registry's re-evaluation before promoting to staging.
+- **Model compilation**: TensorRT engine builds, `torch.compile`/AOT artifacts, ONNX
+  export, quantization. Hermetic *with respect to the platform* — outcome is a function of
+  content × tool digests × hardware — so it qualifies when the verifier enforces platform
+  equivalence (extends V4). **Elided:** the pipeline's re-compilation and artifact
+  validation pass.
+- **Training runs**: the attestation binds the exact recipe — code tree, dataset digests,
+  hyperparameters (all part of `content`/`tools`), platform and identity — so downstream
+  promotion can trust *that this artifact came from that recipe* without re-running it.
+  This is PCP-as-provenance more than PCP-as-elision: the pipeline was never going to
+  re-train per push, but the signed binding replaces "trust the researcher's word" with a
+  verifiable, revocable claim. Binding the produced artifact's digest into the payload
+  extends this to attested artifact reuse (PCP + cache).
+
+**Limitations — training especially:**
+
+1. *Nondeterminism*: identical inputs do not yield identical bits on GPUs (kernel
+   autotuning, atomics, cuDNN heuristics). Gates MUST assert thresholds — eval metrics,
+   convergence criteria — never exact weights or exact engine bits.
+2. *Sampling is expensive*: O3's sampled re-execution, the main bound on a lying producer,
+   costs a full retrain here. Sample cheap proxies instead (re-run evals on the delivered
+   artifact, re-verify data digests) and reserve full retrain audits for high-stakes models.
+3. *Data gravity and privacy*: dataset digests must be computable where the producer runs,
+   and regulated data may not be allowed to move — then move the producer to the data
+   (on-prem is fine: PCP binds identity and platform, not location).
+4. *Long runs vs freshness*: sign at completion over a clean tree (P4); a multi-day run
+   whose base drifted must rebase and re-validate before signing, and the TTL (V5) starts
+   at the signature, not at job start.
+5. *Higher residual*: a fabricated training claim is costlier to catch than a fabricated
+   lint verdict. Keep eval-based acceptance gates centralized in the pipeline — elide
+   redundant *re-verification*, never blind-accept model quality.
+
+**Caveat:** this is the pattern's most valuable and most adversarial instance at once —
+adopt promotion gates first, compilation second, training attestation last.
 
 ## 3. Infrastructure-as-Code and policy-as-code
 
