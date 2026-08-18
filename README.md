@@ -59,6 +59,7 @@ fail-closed fallback (**VERDICT: RUN FULL PIPELINE**).
 | [`reference/pcp.py`](reference/pcp.py) | Reference CLI: `keygen · attest · verify` (Ed25519 demo backend + Google Cloud KMS backend) |
 | [`reference/demo/`](reference/demo/) | Runnable end-to-end demo |
 | [`.github/workflows/attest-and-skip.yml`](.github/workflows/attest-and-skip.yml) | Example CI wiring with fail-closed fallback |
+| [`examples/`](examples/) | Reference pipelines: [GitHub Actions](examples/github-actions.yml) (verifier job + conditional heavy gates + sampled re-verify) and [GitLab CI](examples/gitlab-ci.yml) (dynamic child-pipeline pattern + script-guard variant) |
 
 ## Prior art (and why PCP is different)
 

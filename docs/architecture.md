@@ -75,9 +75,12 @@ flowchart TB
         gate -. "missing / invalid /<br/>stale / drifted" .-> full --> rest
     end
 
+    export["in-toto / DSSE Export<br/>[optional — O9]<br/>PCP predicate consumable by<br/>transparency logs / policy engines"]
+
     signer -- "sign(payload digest)" --> kms
-    lock -- "sync check" --> registry
+    lock -- "sync check +<br/>background pre-fetch (O10)" --> registry
     signer -- "attestation" --> git
+    signer -. "in-toto Statement" .-> export
     gate -- "verify with public key" --> kms
     gate -- "membership checks" --> registry
 
@@ -87,7 +90,7 @@ flowchart TB
     classDef sk fill:#f1c40f,stroke:#b7950b,color:#333333
     class gates,signer,full,rest c
     class lock,gate hl
-    class kms,registry ext
+    class kms,registry,export ext
     class skip sk
 ```
 
@@ -119,8 +122,13 @@ sequenceDiagram
     G-->>P: PASS + tool digests
     P->>P: canonical payload = {content: tree hash,<br/>tools, rules, gates, identity, timestamp}
     P->>K: asymmetric-sign(sha256(payload)) [IAM-checked]
-    K-->>P: signature (operation audit-logged)
-    P->>R: push commit + attestation (git note)
+    alt KMS reachable
+        K-->>P: signature (operation audit-logged)
+        P->>R: push commit + attestation (git note)
+    else KMS unreachable (availability)
+        K--xP: no signature
+        P->>R: push commit without proof<br/>(gate work not lost — signable later, within TTL)
+    end
     R->>V: delivery event
     V->>V: V1 verify signature · V2 identity enrolled ·<br/>V3 tree hash matches · V4 digests+rules current ·<br/>V5 age ≤ TTL
     alt all checks pass
@@ -128,6 +136,7 @@ sequenceDiagram
     else any check fails or no proof
         V->>F: run full pipeline (fail-closed — never less safe than classic CI)
     end
+    Note over V,F: O3/O8 — a sampled fraction of elided gate sets is re-run —<br/>divergence escalates that identity's sampling rate, up to auto-quarantine
 ```
 
 The verifier is deliberately boring: one signature verification and four set/equality

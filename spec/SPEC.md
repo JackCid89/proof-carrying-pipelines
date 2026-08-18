@@ -77,8 +77,23 @@ O6. Lock custody: `versions.lock` (and gate definitions) SHOULD be generated and
     platform-managed process separate from the gate execution environment, and SHOULD NOT be
     writable from it. Producer tampering with the lock reduces to threat A5.
 O7. Agent producers: an autonomous agent acting as producer MUST sign under its own enrolled
-    identity (never the invoking human's), SHOULD receive a shorter TTL, and SHOULD be
-    subject to a higher O3 sampling rate than human producers.
+    identity (never the invoking human's), SHOULD receive a shorter TTL, SHOULD be
+    subject to a higher O3 sampling rate than human producers, and SHOULD execute in an
+    ephemeral, single-use environment (fresh container per attestation) so no persistent
+    environment tampering survives across runs.
+O8. Adaptive sampling and auto-quarantine: the O3 sampling rate SHOULD be adaptive per
+    identity — divergence found in a sampled re-run escalates that identity's rate (up to
+    100%, i.e., de facto loss of elision) and MAY suspend its elision rights automatically
+    pending review. Because the system is fail-closed, automatic quarantine is safe by
+    construction: a false positive costs only runner minutes, never safety.
+O9. Interoperability: implementations SHOULD be able to export the attestation as an
+    in-toto Statement (DSSE envelope) with a PCP predicate type, so third-party
+    supply-chain tooling (transparency logs, policy engines) can consume proofs without
+    understanding the attest-and-skip semantics. The V1-V5 predicates are unchanged.
+O10. Drift-lock pre-fetch: the local bundle SHOULD refresh its lock in the background
+    (daemon or scheduled pull) so that P3's mandatory pre-sign check rarely blocks the
+    developer at push time. Pre-fetching moves latency off the critical path; it never
+    replaces the pre-sign check itself.
 
 ## 6. Non-goals
 

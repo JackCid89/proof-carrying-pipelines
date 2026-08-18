@@ -1,0 +1,74 @@
+# PCP attest-and-skip — GitHub Actions reference wiring.
+#
+# Shape: one cheap verifier job decides; heavy gates run only when there is NO valid
+# proof (fail-closed); non-redundant stages (deploy) always run.
+# Copy into .github/workflows/ and adapt the three marked spots.
+
+name: ci
+on: [push]
+
+permissions:
+  contents: read
+
+jobs:
+  attest-gate:
+    runs-on: ubuntu-latest
+    outputs:
+      skip: ${{ steps.verify.outputs.skip }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - name: fetch attestation (git notes, refs/notes/pcp)
+        run: git fetch origin 'refs/notes/pcp:refs/notes/pcp' || true
+
+      - id: verify
+        name: verify proof (seconds, not minutes)
+        run: |
+          # No note on HEAD -> no proof -> classic path (fail-closed).
+          git notes --ref pcp show HEAD > attestation.json 2>/dev/null \
+            || { echo "skip=false" >> "$GITHUB_OUTPUT"; exit 0; }
+
+          # V1-V5 predicates. ADAPT: public key / approved-set source / TTL.
+          if python3 reference/pcp.py verify \
+               --repo . \
+               --attestation attestation.json \
+               --pub keys/org-ed25519.pub \
+               --approved approved.json \
+               --ttl-hours 24; then
+            echo "skip=true"  >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"   # invalid/stale/drifted -> run everything
+          fi
+
+  heavy-gates:
+    needs: attest-gate
+    if: needs.attest-gate.outputs.skip != 'true'   # elided ONLY under a valid proof
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # ADAPT: your real gates, in the same pinned images the producers use.
+      - run: echo "full pipeline: lint + static analysis + compile + unit tests"
+
+  sampled-reverify:
+    # O3/O8 — statistical bound on fabricated verdicts: re-run a sampled fraction
+    # of ELIDED gate sets and alert on divergence. Cheap insurance, keep it on.
+    needs: attest-gate
+    if: needs.attest-gate.outputs.skip == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: sample (ADAPT rate; escalate per identity on divergence)
+        run: |
+          if [ $((RANDOM % 100)) -lt 5 ]; then   # 5% flat; O8: adaptive per identity
+            echo "re-running elided gates for audit..."
+            # run the same gates; on divergence: alert + escalate identity sampling
+          fi
+
+  deploy:
+    # Never elided — registration/deployment is not redundant re-execution (SPEC §4).
+    needs: [attest-gate, heavy-gates]
+    if: always() && !failure() && !cancelled()
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "register + deploy"

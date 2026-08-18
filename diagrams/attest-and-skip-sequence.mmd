@@ -16,8 +16,13 @@ sequenceDiagram
     G-->>P: PASS + tool digests
     P->>P: canonical payload = {content: tree hash,<br/>tools, rules, gates, identity, timestamp}
     P->>K: asymmetric-sign(sha256(payload)) [IAM-checked]
-    K-->>P: signature (operation audit-logged)
-    P->>R: push commit + attestation (git note)
+    alt KMS reachable
+        K-->>P: signature (operation audit-logged)
+        P->>R: push commit + attestation (git note)
+    else KMS unreachable (availability)
+        K--xP: no signature
+        P->>R: push commit without proof<br/>(gate work not lost — signable later, within TTL)
+    end
     R->>V: delivery event
     V->>V: V1 verify signature · V2 identity enrolled ·<br/>V3 tree hash matches · V4 digests+rules current ·<br/>V5 age ≤ TTL
     alt all checks pass
@@ -25,3 +30,4 @@ sequenceDiagram
     else any check fails or no proof
         V->>F: run full pipeline (fail-closed — never less safe than classic CI)
     end
+    Note over V,F: O3/O8 — a sampled fraction of elided gate sets is re-run —<br/>divergence escalates that identity's sampling rate, up to auto-quarantine

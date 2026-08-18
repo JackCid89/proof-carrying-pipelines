@@ -1,7 +1,7 @@
 # Proof-Carrying Pipelines: Offloading CI/CD Gate Execution to Untrusted-but-Identified Machines with Cryptographic Attestations
 
 **Jack Andrés Cid**
-*Independent work — v1.1, August 2026*
+*Independent work — v1.2, August 2026*
 
 ---
 
@@ -75,7 +75,11 @@ chain. PCP borrows its core insight — sign the *execution of a step*, not just
 but repurposes it for a different decision at a different point: elide *re-execution inside the
 pipeline itself*, with an explicit fallback path and an economics-driven framing (compute
 offload). SLSA provenance, sigstore/cosign and GitHub Artifact Attestations sign what was built
-and where; they document provenance rather than replace pipeline work.
+and where; they document provenance rather than replace pipeline work. PCP is deliberately
+format-compatible with this ecosystem: the attestation payload can be exported as an in-toto
+Statement (DSSE envelope) under a PCP predicate type (SPEC O9), so transparency logs and
+policy engines can consume PCP proofs as part of the broader supply chain without
+understanding attest-and-skip semantics.
 
 **Hardware-rooted approaches.** Attestable Builds (2025) and the evidence-driven protocol of
 Castillo et al. (2026) obtain stronger guarantees — attested execution state — by running
@@ -164,14 +168,26 @@ attestation names the exact container images/binaries), by audit logging every s
 fraction of skipped gates), and by making the skip *revocable per identity*. Organizations for
 which A5 is intolerable should combine PCP with TEE-backed signers or forgo elision.
 
+**Adaptive sampling and identity reputation.** Sampled re-verification (O3) need not use a
+flat rate. The natural operational refinement is per-identity adaptation: a divergence found
+in a sampled re-run escalates that identity's sampling rate — up to 100%, which is de facto
+loss of elision — and can suspend its elision rights automatically pending review (O8).
+Reputation systems are usually dangerous to automate because the penalty destroys value on
+false positives; PCP's fail-closed structure makes automatic quarantine safe by construction —
+the penalty is only the loss of an optimization, so a false positive costs runner minutes,
+never safety. Trust becomes a tunable, per-identity, self-correcting quantity.
+
 **(A5′) Autonomous coding agents as producers.** When the producer's workload is driven by an
 autonomous coding agent, a behavior functionally equivalent to A5 arises *without malicious
 intent*: reward hacking — the agent weakens an assert, skips a test, or edits a rule to "reach
 green." The cryptography is again intact; the claim is hollow. For agent-signed attestations we
 recommend: a *separate enrolled identity per agent* (an agent must never sign as the human who
 invoked it — this also makes O1 audit logs meaningful), a shorter TTL than for human producers,
-and a substantially more aggressive sampling rate for re-verification (O3). Organizations can
-then tune trust per identity class rather than per protocol.
+a substantially more aggressive sampling rate for re-verification (O3/O8), and *ephemeral
+execution*: unlike a human's workstation, an agent needs no persistent environment, so each
+agent attestation should originate from a fresh single-use container — persistent tampering
+with the producer environment then cannot survive across runs. Organizations can tune trust
+per identity class rather than per protocol.
 
 **Key custody.** Signing keys live in an HSM-backed KMS; machines hold *invocation rights*
 (IAM), never key material. Compromise of a laptop yields the ability to sign — visible in audit
@@ -217,6 +233,19 @@ images, and rule sets.
    signing; on drift or staleness it still validates but refuses to sign (advisory verdict)
    until self-updated. This makes rule rollout instantaneous: bumping the ruleset digest
    invalidates every outstanding proof at the verifier without coordinating with producers.
+   For developer ergonomics the bundle should *pre-fetch* lock updates in the background
+   (O10) so the mandatory pre-sign check rarely blocks at push time — pre-fetching moves
+   latency off the critical path without weakening the check.
+
+**Monorepo aggregation (design sketch).** In a monorepo, one commit can touch dozens of
+targets, each with its own gate set. Naively this means one attestation — and one KMS
+invocation — per target. The verifier is not the bottleneck (a signature check is
+milliseconds); the costs are producer-side KMS quota/latency and audit-log noise. The natural
+aggregation is Merkle-shaped: build one payload per affected target, arrange their digests as
+leaves of a Merkle tree, and sign the root *once*. The attestation carries the root signature
+plus, per target, its payload and inclusion path; the verifier checks the single signature and
+the inclusion proof for whichever targets the pipeline run actually covers. One KMS call, one
+audit-log entry, per-target verification granularity preserved.
 
 **Design notes.** The binding must be to the *tree hash* (content), not the commit hash, so
 history rewrites that preserve content preserve proofs, and any content change breaks them.
@@ -274,6 +303,17 @@ checks, compilation, unit tests), which in practice dominate redundant CI time. 
 does not accelerate cold-start consumers (a fresh clone still runs everything); its economics
 target the high-frequency inner loop.
 
+**Secrets in local execution.** Some gates need credentials — typically read access to
+private package registries during dependency resolution. Two-layer answer. First, a truly
+hermetic gate should need *no* live secrets: vendored dependencies or a read-only registry
+proxy remove the need entirely, and a gate that requires credentials to live services is
+failing the hermeticity test and should not be elided in the first place. Second, for the
+legitimate residue (private package pulls), apply *minimal injection*: short-lived, read-only,
+narrowly scoped credentials issued against the producer's enrolled identity — the same IAM
+surface that already grants KMS invocation — never long-lived organizational secrets stored on
+the machine. A compromised producer then leaks at most a scoped, expiring, revocable read
+token, and the audit trail already knows which identity held it.
+
 **Availability.** Because execution and certification are decoupled, signer unavailability is
 not a new failure mode — it is the existing one. If the KMS is unreachable, the producer cannot
 sign; an unsigned push carries no proof; and absence of proof *is* the classic path: the full
@@ -296,8 +336,10 @@ audit logging* — if keys live on laptops the trust claims collapse; (4) an *id
 enrollment and revocation process* (joiner/leaver discipline for producers, human or agent);
 (5) a *programmable pipeline choke point* able to verify-then-elide with a fail-closed
 default; (6) *gate telemetry* (per-stage durations) to identify which gates are hermetic and
-redundant and to size the benefit honestly; and (7) an *owner for the operational regime* —
-someone accountable for the approved set, sampling rate (O3) and revocations. Teams missing
+redundant and to size the benefit honestly; (7) an *owner for the operational regime* —
+someone accountable for the approved set, sampling rate (O3/O8) and revocations; and (8) a
+*scoped short-lived credential path* for the gates that legitimately need private-registry
+access (see Secrets above). Teams missing
 (1)–(3) should treat those as the roadmap: they are valuable independently of PCP, and PCP is
 then a small increment on top. Conversely, an organization with none of this maturity gains
 little from the pattern and should not start here.
@@ -311,9 +353,9 @@ treat the sampling, audit and revocation obligations (O1–O4) as load-bearing, 
 ## 8. Future work
 
 TEE-backed signers as a drop-in producer upgrade; transparency-log countersigning of
-attestations (sigstore/Rekor) for third-party auditability; proof aggregation for monorepos
-(one attestation per affected target set); formalizing the verifier predicates; and measuring
-fleet-level compute displacement at scale.
+attestations (sigstore/Rekor) for third-party auditability; implementing the Merkle
+aggregation sketched in §4 and the in-toto/DSSE export (O9); formalizing the verifier
+predicates; and measuring fleet-level compute displacement at scale.
 
 ## References
 

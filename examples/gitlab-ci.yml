@@ -1,0 +1,87 @@
+# PCP attest-and-skip — GitLab CI reference wiring.
+#
+# GitLab nuance: job-level `rules:` are evaluated at PIPELINE CREATION time, before any
+# job runs — so a later job cannot be conditioned on the verifier's result via rules.
+# Two honest patterns:
+#
+#   A) DYNAMIC CHILD PIPELINE (recommended; scales to many gates)
+#      The verifier GENERATES the pipeline that follows: full gates when there is no
+#      valid proof, only non-elidable stages when the proof verifies.
+#      (Same mechanism platform teams already use for monorepo child pipelines.)
+#
+#   B) SCRIPT GUARD (simplest)
+#      Heavy jobs start, read the verifier's dotenv artifact, and exit 0 immediately
+#      when SKIP=true. Costs a few seconds of container startup per job.
+#
+# This file implements A, with B shown at the end commented.
+
+stages: [attest, trigger, deploy]
+
+attest-gate:
+  stage: attest
+  image: python:3.12-slim        # ADAPT: pin by digest in production
+  script:
+    - git fetch origin 'refs/notes/pcp:refs/notes/pcp' || true
+    - |
+      SKIP=false
+      if git notes --ref pcp show HEAD > attestation.json 2>/dev/null; then
+        # V1-V5 predicates. ADAPT: public key / approved-set source / TTL.
+        if python3 reference/pcp.py verify \
+             --repo . \
+             --attestation attestation.json \
+             --pub keys/org-ed25519.pub \
+             --approved approved.json \
+             --ttl-hours 24; then
+          SKIP=true
+        fi
+      fi
+      echo "SKIP=$SKIP"
+    - |
+      # Generate the child pipeline according to the verdict (fail-closed by default).
+      if [ "$SKIP" = "true" ]; then
+        cp ci/child-elided.yml child.yml     # non-elidable stages only (+ sampling)
+      else
+        cp ci/child-full.yml child.yml       # the classic full pipeline
+      fi
+  artifacts:
+    paths: [child.yml]
+    expire_in: 1 hour
+
+run-pipeline:
+  stage: trigger
+  trigger:
+    include:
+      - artifact: child.yml
+        job: attest-gate
+    strategy: depend             # parent reflects child status
+
+deploy:
+  # Never elided — not redundant re-execution (SPEC §4).
+  stage: deploy
+  script:
+    - echo "register + deploy"
+
+# --- ci/child-full.yml (reference) ---------------------------------------------------
+# stages: [gates]
+# lint:          { stage: gates, image: <pinned-linter@sha256:...>,   script: [make lint] }
+# static-checks: { stage: gates, image: <pinned-analyzer@sha256:...>, script: [make check] }
+# unit-tests:    { stage: gates, image: <pinned-runtime@sha256:...>,  script: [make test] }
+#
+# --- ci/child-elided.yml (reference) -------------------------------------------------
+# stages: [audit]
+# sampled-reverify:                 # O3/O8 — keep a sampled re-run of elided gates
+#   stage: audit
+#   rules: [{ if: '$CI_PIPELINE_SOURCE', when: always }]
+#   script:
+#     - |
+#       if [ $((RANDOM % 100)) -lt 5 ]; then   # 5% flat; O8: adaptive per identity
+#         echo "re-running elided gates for audit..."
+#       fi
+#
+# --- Pattern B: script guard (no child pipelines) ------------------------------------
+# attest-gate writes SKIP into a dotenv artifact:
+#   artifacts: { reports: { dotenv: pcp.env } }   # echo "PCP_SKIP=$SKIP" > pcp.env
+# and every heavy job begins with:
+#   script:
+#     - if [ "$PCP_SKIP" = "true" ]; then echo "elided under valid proof"; exit 0; fi
+#     - make lint   # ... the real gate

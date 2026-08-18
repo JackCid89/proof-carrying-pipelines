@@ -26,9 +26,12 @@ flowchart TB
         gate -. "missing / invalid /<br/>stale / drifted" .-> full --> rest
     end
 
+    export["in-toto / DSSE Export<br/>[optional — O9]<br/>PCP predicate consumable by<br/>transparency logs / policy engines"]
+
     signer -- "sign(payload digest)" --> kms
-    lock -- "sync check" --> registry
+    lock -- "sync check +<br/>background pre-fetch (O10)" --> registry
     signer -- "attestation" --> git
+    signer -. "in-toto Statement" .-> export
     gate -- "verify with public key" --> kms
     gate -- "membership checks" --> registry
 
@@ -38,5 +41,5 @@ flowchart TB
     classDef sk fill:#f1c40f,stroke:#b7950b,color:#333333
     class gates,signer,full,rest c
     class lock,gate hl
-    class kms,registry ext
+    class kms,registry,export ext
     class skip sk
