@@ -70,6 +70,15 @@ O3. The organization SHOULD re-run a random sample of elided gate sets and alert
     divergence (bounds fabricated-verdict survival; see threat A5 in the paper).
 O4. Rule/tool rollout: bumping the approved digests at the verifier immediately invalidates
     all outstanding proofs — producers re-sync via their drift lock.
+O5. Approved-set hygiene: digest membership asserts identity and immutability, NOT security
+    posture. The organization MUST harden/scan images before admitting them to the approved
+    set; this holds equally for full-environment "golden image" digests.
+O6. Lock custody: `versions.lock` (and gate definitions) SHOULD be generated and frozen by a
+    platform-managed process separate from the gate execution environment, and SHOULD NOT be
+    writable from it. Producer tampering with the lock reduces to threat A5.
+O7. Agent producers: an autonomous agent acting as producer MUST sign under its own enrolled
+    identity (never the invoking human's), SHOULD receive a shorter TTL, and SHOULD be
+    subject to a higher O3 sampling rate than human producers.
 
 ## 6. Non-goals
 
