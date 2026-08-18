@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+reference/demo/work/
+reference/demo/demo-key.*
+reference/demo/attestation.json
+_to_delete/

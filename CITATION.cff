@@ -1,0 +1,14 @@
+cff-version: 1.2.0
+title: "Proof-Carrying Pipelines: Offloading CI/CD Gate Execution to Untrusted-but-Identified Machines with Cryptographic Attestations"
+message: "If you use or discuss this pattern, please cite it as below."
+type: software
+authors:
+  - family-names: "Cid"
+    given-names: "Jack Andrés"
+    email: "j.andres.cid@gmail.com"
+version: 1.0.0
+date-released: 2026-08-18
+license: Apache-2.0
+repository-code: "https://github.com/JackCid89/proof-carrying-pipelines"
+abstract: "An architectural pattern (+ reference attest-and-skip protocol) for offloading CI/CD gate execution to identified machines with content-bound, KMS-signed attestations: verify in seconds, skip redundant work, fail closed."
+keywords: [ci-cd, attestation, supply-chain-security, shift-left, kms, proof-carrying]

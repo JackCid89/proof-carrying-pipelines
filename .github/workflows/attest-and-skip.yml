@@ -1,0 +1,35 @@
+# Example attest-and-skip gate with fail-closed fallback (GitHub Actions flavor).
+name: ci
+on: [push]
+jobs:
+  attest-gate:
+    runs-on: ubuntu-latest
+    outputs: { skip: ${{ steps.verify.outputs.skip }} }
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: fetch attestation (git notes)
+        run: git fetch origin 'refs/notes/pcp:refs/notes/pcp' || true
+      - id: verify
+        name: verify proof (seconds, not minutes)
+        run: |
+          git notes --ref pcp show HEAD > attestation.json 2>/dev/null || { echo "skip=false" >> $GITHUB_OUTPUT; exit 0; }
+          if python3 reference/pcp.py verify --repo . --attestation attestation.json \
+               --pub keys/org-ed25519.pub --approved approved.json --ttl-hours 24; then
+            echo "skip=true"  >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT   # fail-closed: run everything
+          fi
+  heavy-gates:
+    needs: attest-gate
+    if: needs.attest-gate.outputs.skip != 'true'   # elided only under a valid proof
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "full pipeline: lint + static analysis + compile + unit tests"
+  deploy:   # never elided — not redundant re-execution (SPEC §4)
+    needs: [attest-gate, heavy-gates]
+    if: always() && !failure() && !cancelled()
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "register + deploy"

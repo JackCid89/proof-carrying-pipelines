@@ -1,0 +1,8 @@
+# Demo gates: host execution (interpreter hash pinned automatically).
+# Production: set image + digest per gate to run in pinned containers.
+gates:
+  - id: compile-check
+    command: python3 -m py_compile src/calc.py src/test_calc.py
+  - id: unit-tests
+    command: python3 -m pytest -q src/
+rule_documents: []

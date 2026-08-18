@@ -1,0 +1,15 @@
+808a234d35291147a77259a8939b0038131b615f1fbecc330d536925f54b9c4b  ./.github/workflows/attest-and-skip.yml
+321e90d5321c22efa8028cfcd7d2c11349311ae81d0dd445c861e7f24f31f76d  ./.gitignore
+22ceddbff48dde8a939c8a8da8edea95e9d8ca76987547ae1d3965a54fe563f1  ./CITATION.cff
+cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30  ./LICENSE
+99ae4c90ea5f602e1af51236562aa3c73f15e5fa3b4b79064581b668cc9ee56f  ./README.md
+de2b89d836b0e4e54cea6955f47b7086bebe724df336e6c607ae8b60c5779941  ./paper/proof-carrying-pipelines.md
+98af1379c16d26f8f0d325665793ad1d2e6bbb19a9e7ef31c01b010d24281425  ./paper/proof-carrying-pipelines.pdf
+3e0eb248338999a7ce817fa7efb4f8ed8e221eb2d105c5a33bd8ae923d7ffcf2  ./paper/proof-carrying-pipelines.pdf.ots
+85cea451eec057fa7e734548ca3ba6d779ed5836a3f9de14b8394575ef0d7d8e  ./pcp-repo.tar.gz
+abc5dc3826ce9e4d4add10b3f16fa34d196a1811c2bdfdc24fc62a3333ca9ac7  ./reference/demo/gates.yaml
+3547a521ac38ca4c7a5bed819716cbc618e48af0e96f0c6b3bbd110124332fdc  ./reference/demo/run_demo.sh
+95c961c6ac1aedd092bf11896b9083fb42a73040e07020017309741bbf4fbd04  ./reference/demo/src/calc.py
+2a229fe0bc8a05a01635b592556ee4f0f16512eeb0c303d0141acdc0421b4eaa  ./reference/demo/src/test_calc.py
+082301684efb22c4d8bbf705131bbc42936b1922fa3814704e8e1038b85e88d0  ./reference/pcp.py
+1be6ac2eae8b956211a937b5bd0fe61db4d104cc0e384fe787759c096a0bd301  ./spec/SPEC.md
