@@ -9,11 +9,11 @@ sequenceDiagram
     participant V as Attest-and-Skip<br/>Gate
 
     U->>A: "create the dbt model + DAG for X"
-    A->>A: generate draft
+    A->>A: generate draft (optionally steered by<br/>inferential design sensors — advisory)
     loop until all gates PASS (bounded retries)
-        A->>M: validate(changed files, gates=[compile, lint, dag-syntax])
-        M->>G: run gates in CI-equivalent images<br/>(dbt compile, DAG static analysis, rules)
-        G-->>A: structured verdict — failures as data
+        A->>M: validate(changed files, cheapest-first:<br/>syntax → compile → rules → tests → mutation score)
+        M->>G: run gates in CI-equivalent images
+        G-->>A: structured verdict — failures as data,<br/>with self-correction guidance per rule
         A->>A: repair using exact failure details
     end
     A-->>U: verified output + validation report

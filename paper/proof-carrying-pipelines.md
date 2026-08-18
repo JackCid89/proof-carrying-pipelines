@@ -187,7 +187,10 @@ a substantially more aggressive sampling rate for re-verification (O3/O8), and *
 execution*: unlike a human's workstation, an agent needs no persistent environment, so each
 agent attestation should originate from a fresh single-use container — persistent tampering
 with the producer environment then cannot survive across runs. Organizations can tune trust
-per identity class rather than per protocol.
+per identity class rather than per protocol. When the agent's own tests are part of the
+attested gate set, a mutation-score gate (Böckeler 2026) is the computational complement to
+these controls: hollow tests pass coverage but stop killing mutants, so reward-hacked test
+suites become visible *inside* the proof rather than only through sampling.
 
 **Key custody.** Signing keys live in an HSM-backed KMS; machines hold *invocation rights*
 (IAM), never key material. Compromise of a laptop yields the ability to sign — visible in audit
@@ -368,3 +371,4 @@ predicates; and measuring fleet-level compute displacement at scale.
 - Tweag. *Untrusted CI: automatic trusted caching of untrusted builds with Nix*, 2019. · Trustix, nix-community.
 - Nx. *Can You Trust Your Build Cache?* (blog). · Turborepo remote caching + artifact signature verification (docs).
 - Basecamp. *gh-signoff* — https://github.com/basecamp/gh-signoff, 2025.
+- Böckeler, B. *Maintainability Sensors for Coding Agents*, martinfowler.com, 2026 — esp. "The Test Suite as a Regression Sensor".

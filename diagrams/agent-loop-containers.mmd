@@ -5,24 +5,26 @@ flowchart TB
         agent["Coding Agent<br/>[IDE assistant]<br/>Generates code/config<br/>(e.g. dbt models, DAGs);<br/>repairs from structured failures"]
         ws["Working Tree<br/>[git]<br/>Generated + edited files"]
         mcp["MCP Server<br/>[bundle tools]<br/>validate (advisory, per-gate) ·<br/>attest (final, clean tree only)"]
+        infer["Inferential Sensors<br/>[LLM review — ADVISORY ONLY]<br/>modularity / design / semantic dup;<br/>never part of the attestation"]
     end
 
-    subgraph bundle["PCP Local Bundle"]
-        gates["Gate Runner<br/>[pinned images]<br/>dbt compile · DAG static analysis ·<br/>lint · unit tests — CI-equivalent digests"]
-        lock["Drift Lock<br/>[versions.lock — READ-ONLY to agent (O6)]<br/>Keeps gates on current org rules;<br/>background pre-fetch (O10)"]
+    subgraph bundle["PCP Local Bundle — computational sensor suite"]
+        gates["Gate Runner<br/>[pinned images]<br/>dbt compile · DAG static analysis ·<br/>lint · unit tests · mutation score —<br/>CI-equivalent digests"]
+        lock["Drift Lock<br/>[versions.lock — READ-ONLY to agent (O6)]<br/>Keeps sensors on current org rules;<br/>background pre-fetch (O10)"]
         signer["Signer Client<br/>Canonicalize + KMS invoke"]
     end
 
     anchors["Trust Anchors<br/>[organization]<br/>KMS/HSM · approved digests ·<br/>rule sets · enrolled identities"]
 
-    platform["Repository + Attest-and-Skip Gate<br/>[delivery platform]<br/>Verifies V1–V5, elides redundant gates"]
+    platform["Repository + Attest-and-Skip Gate<br/>[delivery platform]<br/>Verifies V1–V5, elides redundant gates<br/>(no sensor re-run needed)"]
 
     dev -- "task" --> agent
     agent -- "writes" --> ws
-    agent -- "validate(files, gates)" --> mcp
+    agent -- "validate(changed files, gates)" --> mcp
+    agent -. "design guidance" .-> infer
     mcp --> gates
-    gates -- "structured verdict<br/>(JSON failures)" --> agent
-    lock -.->|"gates run only from<br/>locked sources"| gates
+    gates -- "structured verdict + repair<br/>guidance (JSON)" --> agent
+    lock -.->|"sensors run only from<br/>locked sources"| gates
     lock -- "sync" --> anchors
     agent -- "verified output +<br/>validation report" --> dev
     dev -- "approve → attest<br/>(clean tree)" --> mcp
@@ -34,7 +36,9 @@ flowchart TB
     classDef hl fill:#e67e22,stroke:#a85a12,color:#ffffff
     classDef ext fill:#999999,stroke:#6b6b6b,color:#ffffff
     classDef person fill:#08427b,stroke:#052e56,color:#ffffff
+    classDef adv fill:#8e6bb5,stroke:#5e4283,color:#ffffff
     class dev person
     class agent,ws,mcp,gates,signer c
     class lock hl
+    class infer adv
     class anchors,platform ext
