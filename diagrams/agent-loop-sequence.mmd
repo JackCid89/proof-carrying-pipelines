@@ -1,0 +1,30 @@
+sequenceDiagram
+    autonumber
+    actor U as Developer
+    participant A as Coding Agent<br/>(IDE)
+    participant M as MCP Bundle Tools
+    participant G as Gate Runner<br/>(pinned images)
+    participant K as KMS / HSM
+    participant R as Repository
+    participant V as Attest-and-Skip<br/>Gate
+
+    U->>A: "create the dbt model + DAG for X"
+    A->>A: generate draft
+    loop until all gates PASS (bounded retries)
+        A->>M: validate(changed files, gates=[compile, lint, dag-syntax])
+        M->>G: run gates in CI-equivalent images<br/>(dbt compile, DAG static analysis, rules)
+        G-->>A: structured verdict — failures as data
+        A->>A: repair using exact failure details
+    end
+    A-->>U: verified output + validation report
+    U->>U: review, edit, accept
+    alt human approves and pushes (typical)
+        U->>M: attest (clean tree — human identity)
+    else autonomous agent flow (O7)
+        A->>M: attest (agent identity — ephemeral env,<br/>short TTL, higher sampling)
+    end
+    M->>K: sign canonical payload
+    U->>R: push commit + attestation
+    R->>V: verify V1–V5
+    V-->>R: SKIP redundant gates ✂
+    Note over A,G: inner-loop validations NEVER sign —<br/>signing happens once, on the final clean tree (P4)

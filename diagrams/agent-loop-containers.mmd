@@ -1,0 +1,40 @@
+flowchart TB
+    dev["👤 Developer<br/>[Person]<br/>Prompts, reviews, approves"]
+
+    subgraph ide["Developer machine — IDE"]
+        agent["Coding Agent<br/>[IDE assistant]<br/>Generates code/config<br/>(e.g. dbt models, DAGs);<br/>repairs from structured failures"]
+        ws["Working Tree<br/>[git]<br/>Generated + edited files"]
+        mcp["MCP Server<br/>[bundle tools]<br/>validate (advisory, per-gate) ·<br/>attest (final, clean tree only)"]
+    end
+
+    subgraph bundle["PCP Local Bundle"]
+        gates["Gate Runner<br/>[pinned images]<br/>dbt compile · DAG static analysis ·<br/>lint · unit tests — CI-equivalent digests"]
+        lock["Drift Lock<br/>[versions.lock — READ-ONLY to agent (O6)]<br/>Keeps gates on current org rules;<br/>background pre-fetch (O10)"]
+        signer["Signer Client<br/>Canonicalize + KMS invoke"]
+    end
+
+    anchors["Trust Anchors<br/>[organization]<br/>KMS/HSM · approved digests ·<br/>rule sets · enrolled identities"]
+
+    platform["Repository + Attest-and-Skip Gate<br/>[delivery platform]<br/>Verifies V1–V5, elides redundant gates"]
+
+    dev -- "task" --> agent
+    agent -- "writes" --> ws
+    agent -- "validate(files, gates)" --> mcp
+    mcp --> gates
+    gates -- "structured verdict<br/>(JSON failures)" --> agent
+    lock -.->|"gates run only from<br/>locked sources"| gates
+    lock -- "sync" --> anchors
+    agent -- "verified output +<br/>validation report" --> dev
+    dev -- "approve → attest<br/>(clean tree)" --> mcp
+    mcp --> signer -- "sign" --> anchors
+    dev -- "push commit +<br/>attestation" --> platform
+    platform -- "verify" --> anchors
+
+    classDef c fill:#438dd5,stroke:#2e6295,color:#ffffff
+    classDef hl fill:#e67e22,stroke:#a85a12,color:#ffffff
+    classDef ext fill:#999999,stroke:#6b6b6b,color:#ffffff
+    classDef person fill:#08427b,stroke:#052e56,color:#ffffff
+    class dev person
+    class agent,ws,mcp,gates,signer c
+    class lock hl
+    class anchors,platform ext
