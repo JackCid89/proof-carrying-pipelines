@@ -1,0 +1,42 @@
+flowchart TB
+    subgraph producer["Producer machine [identified, untrusted]"]
+        direction TB
+        gates["Gate Runner<br/>[container executor]<br/>Runs each gate in its pinned image<br/>(digests recorded)"]
+        lock["Drift Lock<br/>[versions.lock + check/update]<br/>Pins tool digests + rule-set digest;<br/>refuses to sign when drifted/stale"]
+        signer["Signer Client<br/>[CLI]<br/>Canonicalizes payload,<br/>invokes KMS asymmetric-sign"]
+        gates --> signer
+        lock -.->|"gates run only from<br/>locked sources"| gates
+    end
+
+    subgraph anchors["Trust anchors [organization]"]
+        direction TB
+        kms["KMS / HSM<br/>Keys never leave custody;<br/>every signature audit-logged"]
+        registry["Approved Sets<br/>tool digests · rules digest ·<br/>enrolled identities (revocable)"]
+    end
+
+    subgraph platform["Delivery platform"]
+        direction TB
+        git["Repository<br/>commit + attestation<br/>(git note refs/notes/pcp)"]
+        gate["Attest-and-Skip Gate<br/>[seconds]<br/>V1 signature · V2 identity ·<br/>V3 content · V4 digests/rules · V5 TTL"]
+        skip["Redundant gates<br/>ELIDED ✂"]
+        full["Full pipeline<br/>[fail-closed fallback]"]
+        rest["Non-elidable stages<br/>(register, deploy,<br/>environment-dependent tests)"]
+        git --> gate
+        gate -- "proof valid" --> skip --> rest
+        gate -. "missing / invalid /<br/>stale / drifted" .-> full --> rest
+    end
+
+    signer -- "sign(payload digest)" --> kms
+    lock -- "sync check" --> registry
+    signer -- "attestation" --> git
+    gate -- "verify with public key" --> kms
+    gate -- "membership checks" --> registry
+
+    classDef c fill:#438dd5,stroke:#2e6295,color:#ffffff
+    classDef hl fill:#e67e22,stroke:#a85a12,color:#ffffff
+    classDef ext fill:#999999,stroke:#6b6b6b,color:#ffffff
+    classDef sk fill:#f1c40f,stroke:#b7950b,color:#333333
+    class gates,signer,full,rest c
+    class lock,gate hl
+    class kms,registry ext
+    class skip sk

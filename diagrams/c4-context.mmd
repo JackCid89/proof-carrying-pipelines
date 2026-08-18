@@ -1,0 +1,20 @@
+flowchart TB
+    dev["👤 Producer<br/>(developer / edge machine)<br/>[Person + identified machine]"]
+
+    pcp["PCP Local Bundle<br/>[Software System]<br/>Runs the pipeline's hermetic gates locally,<br/>binds and signs the verdict"]
+
+    repo["Repository + Delivery Pipeline<br/>[Existing System]<br/>Hosts commits + attestations;<br/>attest-and-skip gate decides:<br/>verify proof OR run full pipeline"]
+
+    trust["Organizational Trust Anchors<br/>[Existing Systems]<br/>KMS/HSM key custody · IAM identity ·<br/>approved tool digests · rule sets ·<br/>audit logs"]
+
+    dev -- "authors change,<br/>runs gates locally" --> pcp
+    pcp -- "invokes signing<br/>(never holds keys)" --> trust
+    dev -- "push: commit +<br/>attestation" --> repo
+    repo -- "verify: signature, identity,<br/>content, digests, freshness" --> trust
+
+    classDef sys fill:#1168bd,stroke:#0b4884,color:#ffffff
+    classDef ext fill:#999999,stroke:#6b6b6b,color:#ffffff
+    classDef person fill:#08427b,stroke:#052e56,color:#ffffff
+    class dev person
+    class pcp sys
+    class repo,trust ext

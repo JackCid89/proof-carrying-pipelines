@@ -1,0 +1,27 @@
+sequenceDiagram
+    autonumber
+    actor P as Producer
+    participant L as Drift Lock
+    participant G as Gate Runner<br/>(pinned images)
+    participant K as KMS / HSM<br/>(+ audit log)
+    participant R as Repository
+    participant V as Attest-and-Skip<br/>Gate
+    participant F as Full Pipeline<br/>(fallback)
+
+    P->>L: check lock vs sources of truth
+    alt drifted or stale
+        L-->>P: refuse to sign (advisory only) → run update
+    end
+    P->>G: execute gates on clean tree
+    G-->>P: PASS + tool digests
+    P->>P: canonical payload = {content: tree hash,<br/>tools, rules, gates, identity, timestamp}
+    P->>K: asymmetric-sign(sha256(payload)) [IAM-checked]
+    K-->>P: signature (operation audit-logged)
+    P->>R: push commit + attestation (git note)
+    R->>V: delivery event
+    V->>V: V1 verify signature · V2 identity enrolled ·<br/>V3 tree hash matches · V4 digests+rules current ·<br/>V5 age ≤ TTL
+    alt all checks pass
+        V-->>R: SKIP redundant gates ✂ → non-elidable stages proceed
+    else any check fails or no proof
+        V->>F: run full pipeline (fail-closed — never less safe than classic CI)
+    end
