@@ -84,6 +84,9 @@ Rekor) is the right posture; PCP turns "trust me" submissions into auditable cla
 A gate is a good PCP candidate when all four hold:
 
 1. **Hermetic** — outcome is a function of content + tools + rules, not environment.
+   *Architecture-sensitive gates (CUDA, arch-specific builds) still qualify if the producer
+   runs equivalent hardware and the payload binds the platform (SPEC §2) — the producer
+   need not be a laptop: on-prem GPU rigs and edge nodes are producers too.*
 2. **Redundant** — the choke point re-runs what the edge already ran.
 3. **Bindable** — content, tools and rules all have stable digests.
 4. **Tolerable residual** — a lying *enrolled* producer is bounded acceptably by pinning,

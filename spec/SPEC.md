@@ -28,6 +28,10 @@ The payload MUST be canonical JSON (JCS, RFC 8785) with exactly these fields:
 ```
 
 - `content` MUST be the **tree** hash, not the commit hash.
+- An OPTIONAL `platform` object (`{os, arch, accelerator?, driver?}`) MAY be included for
+  architecture-sensitive gates (e.g., CUDA workloads); when present, the verifier MUST
+  check it against the approved platform set for those gates (extends V4). Gates whose
+  outcome depends on hardware SHOULD assert thresholds rather than exact values.
 - `verdict` MUST be `PASS`; failing runs MUST NOT be signed.
 - The signature MUST cover the SHA-256 of the canonical payload.
 - The attestation (payload + signature + key reference) SHOULD travel with the commit as a
