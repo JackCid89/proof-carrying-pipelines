@@ -10,6 +10,12 @@ the *attest-and-skip protocol* ([SPEC v1](spec/SPEC.md)).**
 > The commit carries the evidence; the checker stays cheap.
 > *(A deliberate homage to Proof-Carrying Code, Necula 1996.)*
 
+**Producer-agnostic by design, agent-ready by specification:** the threat model (A5′,
+reward hacking), identity rules (O7: per-agent identities, ephemeral single-use
+environments) and gate recommendations (mutation-score gates for agent-authored tests)
+treat autonomous coding agents as first-class — untrusted — producers. See
+[`docs/agent-loop.md`](docs/agent-loop.md).
+
 ## The pattern in 30 seconds
 
 Modern pipelines re-run the same hermetic gates (lint, static analysis, policy checks,
