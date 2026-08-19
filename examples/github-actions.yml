@@ -1,5 +1,9 @@
 # PCP attest-and-skip — GitHub Actions reference wiring.
 #
+# O11 (verifier self-protection): keys/, approved.json and this workflow file must NOT
+# be editable by the changeset under verification — protect them via CODEOWNERS/rulesets
+# or fetch anchors from the org registry/KMS at verify time.
+#
 # Shape: one cheap verifier job decides; heavy gates run only when there is NO valid
 # proof (fail-closed); non-redundant stages (deploy) always run.
 # Copy into .github/workflows/ and adapt the three marked spots.

@@ -1,7 +1,7 @@
 # Proof-Carrying Pipelines: Offloading CI/CD Gate Execution to Untrusted-but-Identified Machines with Cryptographic Attestations
 
 **Jack Andrés Cid**
-*Independent work — v1.2, August 2026*
+*Independent work — v1.3, August 2026*
 
 ---
 
@@ -115,8 +115,11 @@ independently check, mutable by anyone with sufficient admin rights (including v
 status API). PCP's verdict is an explicit, signed, content-bound, revocable claim checked by
 predicates at decision time.
 
-It is instructive to ask what one would have to *add* to self-hosted runners to approximate
-each PCP guarantee: content/tool binding requires signed per-job provenance (in-toto or
+To be fair to the alternative: self-hosted runners win decisively on *simplicity* — no key
+infrastructure, no enrollment or revocation process, no verifier to operate, one system
+instead of two. For many teams that trade is the right one. The comparison below is
+guarantee-oriented, not cost-oriented; it asks what one would have to *add* to self-hosted
+runners to approximate each PCP guarantee: content/tool binding requires signed per-job provenance (in-toto or
 artifact attestations — i.e., adopting attestation itself); tool integrity against runner
 drift requires ephemeral, digest-pinned runner images plus hash-pinned actions and an
 admission process comparing runner images to a source of truth (a rebuilt drift lock);
@@ -196,6 +199,28 @@ suites become visible *inside* the proof rather than only through sampling.
 (IAM), never key material. Compromise of a laptop yields the ability to sign — visible in audit
 logs, revocable in minutes — not the key.
 
+**Identity binding (P5).** A subtle self-attestation residue survives naive implementations:
+if `identity` is a string the producer writes into the payload, and the signing key is
+*shared*, then any principal with invocation rights can sign a payload declaring another
+enrolled identity — the signature stays valid (it covers the payload digest, not an
+identity↔caller binding), V2's membership check passes, and the KMS audit log silently
+diverges from the payload's claim. The protocol therefore requires (P5) that identity be
+*derivable from the signing key*: verifiers hold a key→identity map and V2 checks the
+binding, with key-per-identity enrollment as the recommended realization — invoking the key
+then *is* the identity proof. (Earlier revisions of the reference implementation exhibited
+exactly this gap; it is fixed and covered by the impersonation scenario in the demo.)
+
+**Transport integrity.** Attestations travel as git notes, which are mutable and typically
+outside branch protection. Fail-closed bounds the damage: transport tampering can destroy a
+proof — downgrading that delivery to the classic pipeline — but never forge one. Where
+attestations double as audit evidence, protect the notes ref and/or anchor payload digests
+append-only (signed trailer, transparency log) — see SPEC §5a.
+
+**The verifier must protect itself.** The approved sets, public keys and the pipeline
+definition that runs the verifier must not be modifiable by the changeset they judge —
+otherwise a PR can swap the public key or extend the approved set and self-approve. Anchors
+belong in the org registry/KMS or behind separately-protected paths (SPEC O11).
+
 **Preconditions the protocol does not provide.** Two are worth stating explicitly. First,
 *pinning is identity, not hardening*: a digest guarantees you ran exactly the approved image —
 it says nothing about whether that image is secure. An unhardened image pins, signs and
@@ -268,13 +293,21 @@ economics when deploying cache-mode topology.
 
 ## 5. Reference implementation
 
-The reference implementation (this repository) is ~500 lines of dependency-light Python + Bash:
-`pcp attest` runs declared gates (`gates.yaml`: command + pinned image digest each) in their
-containers, canonicalizes the payload (RFC 8785-style JSON), and signs via pluggable backends
-(local Ed25519 for the demo; Google Cloud KMS asymmetric-sign in production); `pcp verify`
-implements the attest-and-skip predicate set and emits an exit code suitable for
+The reference implementation (this repository) is dependency-light Python + Bash in a
+hexagonal layout that doubles as the spec's executable formalization: `pcp_core/domain.py`
+holds the protocol as pure logic — canonicalization, payload construction, and the V1–V5
+predicates as side-effect-free functions readable next to SPEC §4 — `pcp_core/ports.py`
+defines the boundary (Signer, SignatureVerifier, ContentSource, TrustAnchorSource, Clock),
+and `pcp.py` supplies the CLI plus concrete adapters (git, local Ed25519 for the demo,
+Google Cloud KMS asymmetric-sign for production). A conformance test suite exercises every
+predicate's rejection path (invalid signature; unenrolled identity; identity not bound to
+the signing key, P5; content mismatch; unapproved digests; stale rules; expired or future
+TTL; malformed or absent attestations — which must yield the classic path, never an error)
+and the digest-sensitivity property that any payload field change invalidates the
+signature. `pcp attest` runs declared gates (`gates.yaml`: command + pinned image digest
+each) in their containers; `pcp verify` emits an exit code suitable for
 `allow_failure: false` CI jobs; a `versions.lock` + `pcp update` pair implements the drift
-lock. A 30-line GitHub Actions / GitLab CI snippet shows the gate wiring with fallback.
+lock; example GitHub Actions / GitLab CI wirings show the gate with fallback.
 
 ## 6. Case study (anonymized)
 
@@ -349,7 +382,8 @@ little from the pattern and should not start here.
 
 **Validation status.** This is independent work that has not yet undergone peer review. The
 evidence base is one anonymized industrial case study; the reference implementation is small
-(~500 lines) and has had no external security audit. None of this changes the pattern's logic,
+(a pure protocol core with a conformance test suite over the V1–V5/P4–P5 semantics, plus
+thin adapters) and has had no external security audit. None of this changes the pattern's logic,
 but readers evaluating adoption in regulated environments should calibrate accordingly — and
 treat the sampling, audit and revocation obligations (O1–O4) as load-bearing, not optional.
 

@@ -4,3 +4,8 @@ reference/demo/work/
 reference/demo/demo-key.*
 reference/demo/attestation.json
 _to_delete/
+reference/demo/approved.json
+reference/demo/impostor.json
+__pycache__/
+*.pyc
+.pytest_cache/

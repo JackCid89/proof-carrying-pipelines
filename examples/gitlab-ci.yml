@@ -1,5 +1,9 @@
 # PCP attest-and-skip — GitLab CI reference wiring.
 #
+# O11 (verifier self-protection): keys/, approved.json and this CI definition must NOT
+# be editable by the changeset under verification — use protected files/branches or
+# fetch anchors from the org registry/KMS at verify time.
+#
 # GitLab nuance: job-level `rules:` are evaluated at PIPELINE CREATION time, before any
 # job runs — so a later job cannot be conditioned on the verifier's result via rules.
 # Two honest patterns:

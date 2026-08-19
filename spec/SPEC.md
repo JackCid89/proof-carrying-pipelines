@@ -46,13 +46,23 @@ P2. Execute every gate listed for the change set, using exactly the locked tool 
 P3. Before signing, re-check the lock against the sources of truth. On drift or
     `now − locked_at > max_age`, the producer MUST NOT sign (advisory verdict) until updated.
 P4. Sign only over a clean working tree whose tree hash equals `content`.
+P5. `identity` MUST be the enrolled principal the signing key belongs to — derivable
+    from the Signer, never a self-declared string. RECOMMENDED realization:
+    key-per-identity (each enrolled identity has its own key/key-version, so the
+    ability to invoke that key is itself the identity proof). The attestation MUST
+    carry a stable key reference so verifiers can check the binding (see V2).
 
 ## 4. Verifier obligations
 
 Given a delivery and an attestation, the verifier MUST check, in any order:
 
 V1. Signature verifies against a key currently held by the Signer.
-V2. `identity` ∈ current enrolled set (revocation honored at verify time).
+V2. `identity` ∈ current enrolled set (revocation honored at verify time), AND
+    `identity` equals the identity bound to the attestation's signing-key reference
+    in the verifier's key→identity map (P5). Without this binding, any principal
+    with invocation rights on a shared key could sign payloads declaring another
+    enrolled identity — and the KMS audit log (O1) would silently diverge from the
+    payload's claim.
 V3. `content` = tree hash recomputed from the delivered state.
 V4. every digest in `tools` ∈ currently approved set; `rules` = current rules digest.
 V5. `now − timestamp ≤ TTL` (TTL RECOMMENDED ≤ 24h).
@@ -94,6 +104,22 @@ O10. Drift-lock pre-fetch: the local bundle SHOULD refresh its lock in the backg
     (daemon or scheduled pull) so that P3's mandatory pre-sign check rarely blocks the
     developer at push time. Pre-fetching moves latency off the critical path; it never
     replaces the pre-sign check itself.
+O11. Verifier self-protection: the verifier's configuration — approved sets, public
+    keys / key→identity map, and the pipeline definition that runs the verifier —
+    MUST NOT be modifiable by the changeset under verification. Fetch anchors from
+    the organization registry or KMS at verify time, or protect their repo paths
+    (CODEOWNERS / protected paths) separately from producer-editable code.
+
+## 5a. Attestation transport
+
+Attestations SHOULD travel as git notes (`refs/notes/pcp`), commit trailers, or
+sidecar files (§2). Note that git notes are mutable by default and typically outside
+branch protection. The security consequence is bounded by fail-closed: tampering with
+the transport can *destroy or corrupt* a proof — degrading that delivery to the classic
+full pipeline — but can never *forge* one (V1). Organizations relying on attestations
+as audit evidence (who validated what, when) SHOULD additionally protect the notes ref
+server-side, and/or anchor the payload digest somewhere append-only: a signed commit
+trailer, or a transparency-log countersignature (e.g., Rekor).
 
 ## 6. Non-goals
 

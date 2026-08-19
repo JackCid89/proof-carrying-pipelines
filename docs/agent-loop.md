@@ -196,6 +196,15 @@ effectiveness, not just coverage; and the final push skips the redundant gates e
 under the attestation. Quality in the inner loop, compute savings in the outer loop —
 same bundle, same pins, same rules.
 
+## Validation status
+
+This document is a conceptual proposal. Unlike the protocol core (which has a reference
+implementation, a conformance test suite and one industrial case study behind it), the
+agent loop has **no implementation and no validated deployment yet**: there is no
+empirical evidence so far that sensor fidelity plus sensor integrity reduces reward
+hacking in practice, and the latency engineering suggestions are informed judgment, not
+measurements. Treat it as a design to pilot, not a result to cite.
+
 ---
 
 **Reference:** B. Böckeler, *Maintainability Sensors for Coding Agents*,

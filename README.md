@@ -40,7 +40,8 @@ logs, sampled re-verification, revocation), not eliminated — see the threat mo
 
 ```bash
 pip install cryptography pytest pyyaml
-reference/demo/run_demo.sh
+reference/demo/run_demo.sh          # e2e: attest → SKIP · impersonation → P5 reject · tamper → fail-closed
+python3 -m pytest reference/tests/  # protocol conformance suite (pure, no docker needed)
 ```
 
 The demo creates a tiny repo, runs two gates, signs an attestation (local Ed25519 stand-in
@@ -57,7 +58,10 @@ fail-closed fallback (**VERDICT: RUN FULL PIPELINE**).
 | [`docs/use-cases.md`](docs/use-cases.md) | Eight instantiations beyond CI/CD (ML training/compilation/promotion offload, IaC, vendor intake, regulated documents, fleets…) + the 4-point selection test |
 | [`diagrams/`](diagrams/) | Mermaid sources + rendered PNGs of all diagrams |
 | [`spec/SPEC.md`](spec/SPEC.md) | Normative spec: payload schema, producer/verifier obligations (V1–V5), operational rules |
-| [`reference/pcp.py`](reference/pcp.py) | Reference CLI: `keygen · attest · verify` (Ed25519 demo backend + Google Cloud KMS backend) |
+| [`reference/pcp_core/`](reference/pcp_core/) | The protocol as pure, testable logic (hexagonal core): [`domain.py`](reference/pcp_core/domain.py) = executable formalization of the SPEC's P/V rules; [`ports.py`](reference/pcp_core/ports.py) = boundary Protocols; [`service.py`](reference/pcp_core/service.py) = attest/verify orchestration |
+| [`reference/tests/`](reference/tests/) | Conformance suite: every V1–V5 rejection path, P4/P5, fail-closed on absent/malformed proofs, digest sensitivity (`python3 -m pytest reference/tests/`) |
+| [`reference/pcp.py`](reference/pcp.py) | CLI + adapters: `keygen · attest · verify` (git, Ed25519 demo backend, Google Cloud KMS backend) |
+| [`ROADMAP.md`](ROADMAP.md) | Prioritized next steps (Merkle aggregation first) |
 | [`reference/demo/`](reference/demo/) | Runnable end-to-end demo |
 | [`.github/workflows/attest-and-skip.yml`](.github/workflows/attest-and-skip.yml) | Example CI wiring with fail-closed fallback |
 | [`examples/`](examples/) | Reference pipelines: [GitHub Actions](examples/github-actions.yml) (verifier job + conditional heavy gates + sampled re-verify) and [GitLab CI](examples/gitlab-ci.yml) (dynamic child-pipeline pattern + script-guard variant) |
