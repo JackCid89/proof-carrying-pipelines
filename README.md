@@ -83,10 +83,12 @@ signal — self-attestation with none of the binding. PCP names the missing midd
 signed, content-bound, drift-locked, fail-closed **gate elision**. Full comparison in §2 of
 the paper.
 
-## Status & citation
+## Status, contributing & citation
 
-v1.0 draft — feedback and PRs welcome. If you use or discuss the pattern, cite via
-[`CITATION.cff`](CITATION.cff).
+v1.3 draft — actively seeking review and collaborators: threat-model attacks, pipeline
+pilots, agent-loop pilots and roadmap items are the highest-value contributions — see
+[`CONTRIBUTING.md`](CONTRIBUTING.md) and [`ROADMAP.md`](ROADMAP.md). If you use or
+discuss the pattern, cite via [`CITATION.cff`](CITATION.cff).
 
 ## License
 
